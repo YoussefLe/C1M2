@@ -9,20 +9,18 @@
 #
 #*****************************************************************************
 
+
 ifeq ($(PLATFORM),HOST)
-    SOURCES = src/main.c \
-              src/memory.c
+    SOURCES = \
+        src/main.c \
+        src/memory.c
+endif
 
-    INCLUDES = -Iinclude/common
-
-else ifeq ($(PLATFORM),MSP432)
-    SOURCES = src/main.c \
-              src/memory.c \
-              src/interrupts_msp432p401r_gcc.c \
-              src/startup_msp432p401r_gcc.c \
-              src/system_msp432p401r.c
-
-    INCLUDES = -Iinclude/common \
-               -Iinclude/msp432 \
-               -Iinclude/CMSIS
+ifeq ($(PLATFORM),MSP432)
+    SOURCES = \
+        src/main.c \
+        src/memory.c \
+        src/interrupts_msp432p401r_gcc.c \
+        src/startup_msp432p401r_gcc.c \
+        src/system_msp432p401r.c
 endif
