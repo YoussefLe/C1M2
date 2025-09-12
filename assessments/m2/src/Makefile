@@ -25,66 +25,82 @@
 #   PLATFORM=MSP432  -> Cross-compile for MSP432 using arm-none-eabi-gcc
 #------------------------------------------------------------------------------
 
-# Include sources and include paths
+# Makefile for C1M2 Assignment
+# Supports HOST (gcc) and MSP432 (arm-none-eabi-gcc)
+
+#------------------------------------------------------------------------------
+
 include sources.mk
 
-# Default platform (can be overridden via command line)
-PLATFORM = HOST
+# Default platform
+PLATFORM ?= HOST
 
-# Output file name
-TARGET = final_program
+# Output files
+TARGET = c1m2.out
+MAP = c1m2.map
+OBJS = $(SOURCES:.c=.o)
 
-#------------------------------------------------------------------------------
-# Compiler/Linker Flags
-#------------------------------------------------------------------------------
+# Tools (default to host, override for MSP432 below)
+CC = gcc
+LD = gcc
+SIZE = size
 
-# Common flags for all builds
+# General compiler flags
 CFLAGS = -Wall -Werror -g -O0 -std=c99
-CPPFLAGS = $(INCLUDES)
-LDFLAGS = 
+CPPFLAGS = -Iinclude/common
+LDFLAGS =
 
-#------------------------------------------------------------------------------
-# Platform Specific Settings
-#------------------------------------------------------------------------------
+# Platform-specific settings
 ifeq ($(PLATFORM),HOST)
-    CC = gcc
-    LD = gcc
-    ARCH =
-    SPECS =
-    CPU =
-    LINKER_FILE =
+    CPPFLAGS += -DHOST
 endif
 
 ifeq ($(PLATFORM),MSP432)
     CC = arm-none-eabi-gcc
-    LD = arm-none-eabi-ld
-    ARCH = -mthumb
-    CPU = -mcpu=cortex-m4
-    SPECS = --specs=nosys.specs
-    LINKER_FILE = ../msp432p401r.lds
-    LDFLAGS = -T $(LINKER_FILE)
-    CPPFLAGS += -DMSP432
+    LD = arm-none-eabi-gcc
+    SIZE = arm-none-eabi-size
+
+    CPPFLAGS += -DMSP432 -Iinclude/msp432 -Iinclude/CMSIS
+    LDFLAGS += -T msp432p401r.lds
+    CFLAGS += -mcpu=cortex-m4 -mthumb -march=armv7e-m \
+              -mfloat-abi=hard -mfpu=fpv4-sp-d16 \
+              --specs=nosys.specs
 endif
 
-#------------------------------------------------------------------------------
+# ----------------------
 # Build Rules
-#------------------------------------------------------------------------------
+# ----------------------
 
-# Object files from source list
-OBJS = $(SOURCES:.c=.o)
+# Default rule
+all: build
 
-# Default target
+# Build target (compile + link)
 build: $(TARGET)
+	$(SIZE) $(TARGET)
 
-# Linking step
+# Link final executable
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $(ARCH) $(CPU) $(OBJS) -o $(TARGET) $(LDFLAGS) $(SPECS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(OBJS) -o $@ -Wl,-Map=$(MAP) $(LDFLAGS)
 
-# Compilation step for each source file
+# Compile source into object
 %.o: %.c
-	$(CC) $(CFLAGS) $(ARCH) $(CPU) $(CPPFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
-# Clean up
+# Preprocess only
+%.i: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -E $< -o $@
+
+# Assembly only
+%.asm: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -S $< -o $@
+
+# Compile all objects without linking
+.PHONY: compile-all
+compile-all: $(OBJS)
+
+# Clean build artifacts
+.PHONY: clean
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f src/*.o src/*.i src/*.asm *.out *.map
+
 
